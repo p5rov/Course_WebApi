@@ -10,7 +10,11 @@ using Owin;
 [assembly: OwinStartup(typeof(SecretSanta.WebApi.Startup))]
 namespace SecretSanta.WebApi
 {
+    using System.Reflection;
+
     using Autofac;
+    using Autofac.Integration.WebApi;
+
     using Microsoft.Owin.Cors;
     using SecretSanta.Repository;
     using SecretSanta.Repository.Interfaces;
@@ -26,6 +30,8 @@ namespace SecretSanta.WebApi
             WebApiConfig.Register(config);
             app.UseCors(CorsOptions.AllowAll);
             app.UseWebApi(config);
+
+            RegisterDependancies(config);
         }
 
         public void ConfigureOAuth(IAppBuilder app)
@@ -41,14 +47,16 @@ namespace SecretSanta.WebApi
             app.UseOAuthBearerAuthentication(new OAuthBearerAuthenticationOptions());
         }
 
-        public void RegisterDependancies(HttpConfiguration config)
+        private void RegisterDependancies(HttpConfiguration config)
         {
             ContainerBuilder builder = new ContainerBuilder();
-            builder.RegisterType<GroupRepository>().As<IGroupRepository>();			
+            builder.RegisterType<GroupRepositoryFake>().As<IGroupRepository>();
+            
             builder.RegisterApiControllers(Assembly.GetExecutingAssembly());
             builder.RegisterWebApiFilterProvider(config);
-			IContainer container = builder.Build();
+            IContainer container = builder.Build();
             config.DependencyResolver = new AutofacWebApiDependencyResolver(container);
         }
+        
     }
 }

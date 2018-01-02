@@ -17,9 +17,10 @@ namespace SecretSanta.WebApi.Providers
 
     public class SimpleAuthorizationServerProvider : OAuthAuthorizationServerProvider
     {
-        public override void ValidateClientAuthentication(OAuthValidateClientAuthenticationContext context)
+        public override Task ValidateClientAuthentication(OAuthValidateClientAuthenticationContext context)
         {
             context.Validated();
+            return base.ValidateClientAuthentication(context);
         }
 
         public override async Task GrantResourceOwnerCredentials(OAuthGrantResourceOwnerCredentialsContext context)

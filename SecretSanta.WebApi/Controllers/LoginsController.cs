@@ -10,6 +10,10 @@ using SecretSanta.Repository.Interfaces;
 
 namespace SecretSanta.WebApi.Controllers
 {
+    using System.Threading.Tasks;
+
+    using Microsoft.AspNet.Identity.EntityFramework;
+
     public class LoginsController : ApiController
     {
         private IUserRepository m_UserRepository;
@@ -21,9 +25,21 @@ namespace SecretSanta.WebApi.Controllers
         // POST api/logins
         [AllowAnonymous]
         [Route("logins")]
-        public HttpResponseMessage Post([FromBody] string userName, [FromBody] string password)
+        public async Task<HttpResponseMessage> Post([FromBody] string userName, [FromBody] string password)
         {
-            //#2
+            // using (WebClient webClient = new WebClient())
+            // {
+            //    IList<KeyValuePair<string, string>> requestParams = new List<KeyValuePair<string, string>>()
+            //                                                            {
+            //                                                                new KeyValuePair<string, string>("grant_type", "password"),
+            //                                                                new KeyValuePair<string, string>("username", userName),
+            //                                                                new KeyValuePair<string, string>("password", password),
+            //                                                            };
+            //    FormUrlEncodedContent encodedParams = new FormUrlEncodedContent(requestParams);
+            //    var responce = await webClient.UploadString()
+
+            // }
+            // #2
             // POST ~/ logins
             // Header: None
             // Body: 
@@ -44,7 +60,7 @@ namespace SecretSanta.WebApi.Controllers
                 return Request.CreateResponse(HttpStatusCode.BadRequest, "username and password are required");
             }
 
-            IdentityResult result = await m_UserRepository.FindUser(userName, password);
+            IdentityUser result = await m_UserRepository.FindUser(userName, password);
             return Request.CreateResponse(HttpStatusCode.Created);
         }
         

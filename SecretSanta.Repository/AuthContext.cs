@@ -13,6 +13,5 @@ namespace SecretSanta.Repository
         public AuthContext() : base("DefaultConnection")
         {
         }
-
     }
 }

@@ -11,6 +11,7 @@ using SecretSanta.Repository.Interfaces;
 namespace SecretSanta.WebApi.Controllers
 {
     using System.Threading.Tasks;
+    using System.Web;
 
     using Microsoft.AspNet.Identity.EntityFramework;
 
@@ -27,18 +28,20 @@ namespace SecretSanta.WebApi.Controllers
         [Route("logins")]
         public async Task<HttpResponseMessage> Post([FromBody] string userName, [FromBody] string password)
         {
-            // using (WebClient webClient = new WebClient())
-            // {
-            //    IList<KeyValuePair<string, string>> requestParams = new List<KeyValuePair<string, string>>()
-            //                                                            {
-            //                                                                new KeyValuePair<string, string>("grant_type", "password"),
-            //                                                                new KeyValuePair<string, string>("username", userName),
-            //                                                                new KeyValuePair<string, string>("password", password),
-            //                                                            };
-            //    FormUrlEncodedContent encodedParams = new FormUrlEncodedContent(requestParams);
-            //    var responce = await webClient.UploadString()
-
-            // }
+            HttpRequest request = HttpContext.Current.Request;
+            var tokenServiceUrl = request.Url.GetLeftPart(UriPartial.Authority) + request.ApplicationPath + "/api/token";
+            using (HttpClient httpClient = new HttpClient())
+            {
+                IList<KeyValuePair<string, string>> requestParams = new List<KeyValuePair<string, string>>()
+                                                                        {
+                                                                            new KeyValuePair<string, string>("grant_type", "password"),
+                                                                            new KeyValuePair<string, string>("username", userName),
+                                                                            new KeyValuePair<string, string>("password", password),
+                                                                        };
+                FormUrlEncodedContent encodedParams = new FormUrlEncodedContent(requestParams);
+                HttpResponseMessage responce = await httpClient.PostAsync(tokenServiceUrl, encodedParams);
+                return responce;
+            }
             // #2
             // POST ~/ logins
             // Header: None

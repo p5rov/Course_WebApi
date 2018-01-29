@@ -7,6 +7,8 @@ using Microsoft.Owin;
 using Microsoft.Owin.Security.OAuth;
 using Owin;
 
+using SecretSanta.WebApi.Providers;
+
 [assembly: OwinStartup(typeof(SecretSanta.WebApi.Startup))]
 namespace SecretSanta.WebApi
 {
@@ -41,7 +43,7 @@ namespace SecretSanta.WebApi
                                                               AllowInsecureHttp = true,
                                                               TokenEndpointPath = new PathString("/token"),
                                                               AccessTokenExpireTimeSpan = TimeSpan.FromHours(4),
-                                                              Provider = new OAuthAuthorizationServerProvider(),
+                                                              Provider = new AuthorizationServerProvider(),
                                                           };
             app.UseOAuthAuthorizationServer(options);
             app.UseOAuthBearerAuthentication(new OAuthBearerAuthenticationOptions());

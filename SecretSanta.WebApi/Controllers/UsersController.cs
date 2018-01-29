@@ -63,6 +63,7 @@ namespace SecretSanta.WebApi.Controllers
         }
         
         [ResponseType(typeof(string))]
+        [AllowAnonymous]
         public async Task<HttpResponseMessage> Post([FromBody]UserDto userDto)
         {
             //#1

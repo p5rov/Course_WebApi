@@ -7,6 +7,7 @@ using System.Web.Http;
 using Microsoft.AspNet.Identity;
 using SecretSanta.Repository;
 using SecretSanta.Repository.Interfaces;
+using SecretSanta.Repository.Models;
 
 namespace SecretSanta.WebApi.Controllers
 {
@@ -25,18 +26,22 @@ namespace SecretSanta.WebApi.Controllers
 
         // POST api/logins
         [AllowAnonymous]
-        [Route("logins")]
-        public async Task<HttpResponseMessage> Post([FromBody] string userName, [FromBody] string password)
+        public async Task<HttpResponseMessage> Post([FromBody] LoginDto login)
         {
+            if (!ModelState.IsValid)
+            {
+                return Request.CreateResponse(HttpStatusCode.BadRequest, ModelState);
+            }
+
             HttpRequest request = HttpContext.Current.Request;
-            var tokenServiceUrl = request.Url.GetLeftPart(UriPartial.Authority) + request.ApplicationPath + "/api/token";
+            var tokenServiceUrl = request.Url.GetLeftPart(UriPartial.Authority) + request.ApplicationPath + "token";
             using (HttpClient httpClient = new HttpClient())
             {
                 IList<KeyValuePair<string, string>> requestParams = new List<KeyValuePair<string, string>>()
                                                                         {
                                                                             new KeyValuePair<string, string>("grant_type", "password"),
-                                                                            new KeyValuePair<string, string>("username", userName),
-                                                                            new KeyValuePair<string, string>("password", password),
+                                                                            new KeyValuePair<string, string>("username", login.UserName),
+                                                                            new KeyValuePair<string, string>("password", login.Password),
                                                                         };
                 FormUrlEncodedContent encodedParams = new FormUrlEncodedContent(requestParams);
                 HttpResponseMessage responce = await httpClient.PostAsync(tokenServiceUrl, encodedParams);
@@ -58,13 +63,6 @@ namespace SecretSanta.WebApi.Controllers
             // 400 Bad request
             // 404 Not found
             // 401 Unauthorized - грешен username или парола
-            if (string.IsNullOrEmpty(userName) || string.IsNullOrEmpty(password))
-            {
-                return Request.CreateResponse(HttpStatusCode.BadRequest, "username and password are required");
-            }
-
-            IdentityUser result = await m_UserRepository.FindUser(userName, password);
-            return Request.CreateResponse(HttpStatusCode.Created);
         }
         
         // DELETE api/logins/{username}

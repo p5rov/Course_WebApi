@@ -72,6 +72,7 @@ namespace SecretSanta.WebApi.Controllers
 
         [Route("api/groups/{groupname}/participants")]
         [ResponseType(typeof(string[]))]
+        [Authorize]
         public HttpResponseMessage GetGroupParticipants(string groupname)
         {
             // #13

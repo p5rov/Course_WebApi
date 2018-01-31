@@ -7,6 +7,7 @@ using System.Web.Http;
 using System.Web.Http.Description;
 using SecretSanta.Repository;
 using SecretSanta.Repository.Interfaces;
+using SecretSanta.WebApi.AuthorizationAttributes;
 using SecretSanta.WebApi.Models;
 
 namespace SecretSanta.WebApi.Controllers
@@ -72,7 +73,7 @@ namespace SecretSanta.WebApi.Controllers
 
         [Route("api/groups/{groupname}/participants")]
         [ResponseType(typeof(string[]))]
-        [Authorize]
+        [AdminAuthorize]
         public HttpResponseMessage GetGroupParticipants(string groupname)
         {
             // #13

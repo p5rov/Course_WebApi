@@ -13,12 +13,12 @@ namespace SecretSanta.Repository
 {
     public class UserRepository : IUserRepository
     {
-        private AuthContext m_AuthContext;
+        private AppContext m_AuthContext;
         private UserManager<IdentityUser> m_UserManager;
 
         public UserRepository()
         {
-            m_AuthContext = new AuthContext();
+            m_AuthContext = new AppContext();
             m_UserManager = new UserManager<IdentityUser>(new UserStore<IdentityUser>(m_AuthContext));
         }
 

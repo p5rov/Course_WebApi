@@ -1,12 +1,15 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
+using System.Web.Compilation;
 using System.Web.Http;
 using Microsoft.Owin;
 using Microsoft.Owin.Security.OAuth;
 using Owin;
 
+using SecretSanta.Repository.Models;
 using SecretSanta.WebApi.Providers;
 
 [assembly: OwinStartup(typeof(SecretSanta.WebApi.Startup))]
@@ -52,6 +55,9 @@ namespace SecretSanta.WebApi
         private void RegisterDependancies(HttpConfiguration config)
         {
             ContainerBuilder builder = new ContainerBuilder();
+            Assembly assembly = typeof(UserIdentity).Assembly;
+
+            builder.RegisterAssemblyTypes(new[] { assembly }).AsImplementedInterfaces();
             builder.RegisterType<GroupRepositoryFake>().As<IGroupRepository>();
             
             builder.RegisterApiControllers(Assembly.GetExecutingAssembly());

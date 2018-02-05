@@ -4,11 +4,13 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
+using System.Transactions;
 using System.Web.Http;
 using System.Web.Http.Description;
 using Microsoft.AspNet.Identity;
 using SecretSanta.Repository;
 using SecretSanta.Repository.Interfaces;
+using SecretSanta.Repository.Models;
 using SecretSanta.WebApi.Models;
 
 namespace SecretSanta.WebApi.Controllers
@@ -17,9 +19,9 @@ namespace SecretSanta.WebApi.Controllers
     {
         private IUserRepository m_UserRepository;
 
-        public UsersController()
+        public UsersController(IUserRepository userRepository)
         {
-            m_UserRepository = new UserRepository();
+            m_UserRepository = userRepository;
         }
 
         protected override void Dispose(bool disposing)
@@ -32,7 +34,8 @@ namespace SecretSanta.WebApi.Controllers
             base.Dispose(disposing);
         }
 
-        public UserDto Get(string username)
+        [ResponseType(typeof(UserDto))]
+        public HttpResponseMessage Get(string username)
         {
             //#5
             //GET ~/users/{username}
@@ -44,7 +47,19 @@ namespace SecretSanta.WebApi.Controllers
             //Error:
             //400 Bad request
             //404 Not found
-            return new UserDto();
+
+            if (string.IsNullOrEmpty(username))
+            {
+                return Request.CreateResponse(HttpStatusCode.BadRequest);
+            }
+
+            UserDto user = m_UserRepository.Get(username);
+            if (user == null)
+            {
+                return Request.CreateResponse(HttpStatusCode.NotFound, "user not found");
+            }
+
+            return Request.CreateResponse(HttpStatusCode.OK, user);
         }
         
         public List<UserDto> Get(int? skip, int? take, string order, string search)
@@ -58,6 +73,8 @@ namespace SecretSanta.WebApi.Controllers
             //	Body: [ {"username" : "..." }, {...} ] 
             //Error:
             //400 bad request
+
+
 
             return new List<UserDto>();
         }
@@ -87,13 +104,17 @@ namespace SecretSanta.WebApi.Controllers
             {
                 Request.CreateResponse(HttpStatusCode.BadRequest, ModelState);
             }
-
-            IdentityResult result = await m_UserRepository.RegisterUser(userDto);
-            HttpResponseMessage errorResult = GetErrorResult(result);
-
-            if (errorResult != null)
+            
+            using (AppUserManager userManager = AppUserManager.GetInstance())
             {
-                return errorResult;
+                UserIdentity userIdentity = new UserIdentity { UserName = userDto.UserName, DisplayName = userDto.DisplayName, };
+                IdentityResult result = await userManager.CreateAsync(userIdentity, userDto.Password);
+                HttpResponseMessage errorResult = GetErrorResult(result);
+
+                if (errorResult != null)
+                {
+                    return errorResult;
+                }
             }
 
             return Request.CreateResponse(HttpStatusCode.Created, userDto.DisplayName);
@@ -208,7 +229,6 @@ namespace SecretSanta.WebApi.Controllers
 
                 if (ModelState.IsValid)
                 {
-                    // No ModelState errors are available to send, so just return an empty BadRequest.
                     return Request.CreateResponse(HttpStatusCode.BadRequest);
                 }
 

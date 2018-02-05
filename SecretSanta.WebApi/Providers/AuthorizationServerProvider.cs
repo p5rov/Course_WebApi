@@ -23,9 +23,9 @@ namespace SecretSanta.WebApi.Providers
 
         public override async Task GrantResourceOwnerCredentials(OAuthGrantResourceOwnerCredentialsContext context)
         {
-            using (UserRepository userRepository = new UserRepository())
+            using (AppUserManager userManager = AppUserManager.GetInstance())
             {
-                IdentityUser user = await userRepository.FindUser(context.UserName, context.Password);
+                IdentityUser user = await userManager.FindAsync(context.UserName, context.Password);
 
                 if (user == null)
                 {

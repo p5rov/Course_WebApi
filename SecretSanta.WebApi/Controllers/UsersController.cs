@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using System.Transactions;
 using System.Web.Http;
@@ -47,7 +49,7 @@ namespace SecretSanta.WebApi.Controllers
             //Error:
             //400 Bad request
             //404 Not found
-
+            
             if (string.IsNullOrEmpty(username))
             {
                 return Request.CreateResponse(HttpStatusCode.BadRequest);
@@ -105,7 +107,7 @@ namespace SecretSanta.WebApi.Controllers
                 Request.CreateResponse(HttpStatusCode.BadRequest, ModelState);
             }
             
-            using (AppUserManager userManager = AppUserManager.GetInstance())
+            using (SecretSantaUserManager userManager = SecretSantaUserManager.GetInstance())
             {
                 UserIdentity userIdentity = new UserIdentity { UserName = userDto.UserName, DisplayName = userDto.DisplayName, };
                 IdentityResult result = await userManager.CreateAsync(userIdentity, userDto.Password);
@@ -121,7 +123,8 @@ namespace SecretSanta.WebApi.Controllers
         }
 
         [Route("users/{username}/invitations")]
-        public HttpResponseMessage Post(string username, [FromBody]UserInvitationDto invitation)
+        [HttpPost]
+        public HttpResponseMessage PostInvitations(string username, [FromBody]UserInvitationDto invitation)
         {
             //#7
             //POST ~/usrs/{username}/invitations
@@ -142,10 +145,15 @@ namespace SecretSanta.WebApi.Controllers
             return new HttpResponseMessage(HttpStatusCode.Created);
         }
 
-        [Route("users/{username}/invitations")]
+        [Route("api/users/{username}/invitations")]
         [ResponseType(typeof(List<UserInvitationDto>))]
-        public HttpResponseMessage GetInvitations(string username, int? skip, int? take, string order)
+        [HttpGet]
+        [Authorize]
+        public HttpResponseMessage GetInvitations(string username, int? skip = null, int? take = null , string order = null)
         {
+            ClaimsPrincipal currentUser = this.User as ClaimsPrincipal;
+            string currentUserUserName = currentUser.Claims.Where(p => p.Type == "username").Select(p => p.Value).FirstOrDefault();
+            Debug.WriteLine(currentUserUserName);
             //#8
             //GET ~/users/{username}/invitations?skip={s}&take={t}&order={A|D} 
             //Header : {"authToken" : "..." }

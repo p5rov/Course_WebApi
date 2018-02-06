@@ -11,5 +11,7 @@ namespace SecretSanta.Repository.Models
     public class UserIdentity : IdentityUser
     {
         public string DisplayName { get; set; }
+
+        public virtual List<UserInvitation> Invitations { get; set; }
     }
 }

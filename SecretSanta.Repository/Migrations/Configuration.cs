@@ -9,15 +9,16 @@ namespace SecretSanta.Repository.Migrations
     using System.Data.Entity.Migrations;
     using System.Linq;
 
-    internal sealed class Configuration : DbMigrationsConfiguration<SecretSanta.Repository.AppContext>
+    internal sealed class Configuration : DbMigrationsConfiguration<SecretSanta.Repository.SecretSantaContext>
     {
         public Configuration()
         {
             AutomaticMigrationsEnabled = true;
-            ContextKey = "SecretSanta.Repository.AppContext";
+            AutomaticMigrationDataLossAllowed = true;
+            ContextKey = "SecretSanta.Repository.SecretSantaContext";
         }
 
-        protected override void Seed(SecretSanta.Repository.AppContext context)
+        protected override void Seed(SecretSanta.Repository.SecretSantaContext context)
         {
             //  This method will be called after migrating to the latest version.
             

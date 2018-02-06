@@ -11,10 +11,16 @@ using SecretSanta.WebApi.Models;
 
 namespace SecretSanta.Repository
 {
-    public class AppContext : IdentityDbContext<UserIdentity>
+    public class SecretSantaContext : IdentityDbContext<UserIdentity>
     {
-        public AppContext() : base("DefaultConnection")
+        public SecretSantaContext() : base("DefaultConnection")
         {
         }
+
+        public DbSet<Group> Groups { get; set; }
+
+        public DbSet<GroupParticipant> GroupParticipants { get; set; }
+
+        public DbSet<UserInvitation> UserInvitations { get; set; }
     }
 }

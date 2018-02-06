@@ -12,16 +12,16 @@ using SecretSanta.WebApi.Models;
 
 namespace SecretSanta.Repository
 {
-    public class AppUserManager : UserManager<UserIdentity>
+    public class SecretSantaUserManager : UserManager<UserIdentity>
     {
-        public AppUserManager(IUserStore<UserIdentity> store)
+        public SecretSantaUserManager(IUserStore<UserIdentity> store)
             : base(store)
         {
         }
 
-        public static AppUserManager GetInstance()
+        public static SecretSantaUserManager GetInstance()
         {
-            return new AppUserManager(new UserStore<UserIdentity>(new AppContext()));
+            return new SecretSantaUserManager(new UserStore<UserIdentity>(new SecretSantaContext()));
         }
     }
 }

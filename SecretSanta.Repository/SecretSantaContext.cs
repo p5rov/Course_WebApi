@@ -22,5 +22,7 @@ namespace SecretSanta.Repository
         public DbSet<GroupParticipant> GroupParticipants { get; set; }
 
         public DbSet<UserInvitation> UserInvitations { get; set; }
+
+        public DbSet<TokenData> TokenData { get; set; }
     }
 }

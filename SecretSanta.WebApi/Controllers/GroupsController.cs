@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Web.Http;
 using System.Web.Http.Description;
 using SecretSanta.Repository;
+using SecretSanta.Repository.Dto;
 using SecretSanta.Repository.Interfaces;
 using SecretSanta.WebApi.AuthorizationAttributes;
 using SecretSanta.WebApi.Models;

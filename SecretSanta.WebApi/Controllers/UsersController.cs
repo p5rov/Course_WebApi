@@ -11,6 +11,7 @@ using System.Web.Http;
 using System.Web.Http.Description;
 using Microsoft.AspNet.Identity;
 using SecretSanta.Repository;
+using SecretSanta.Repository.Dto;
 using SecretSanta.Repository.Interfaces;
 using SecretSanta.Repository.Models;
 using SecretSanta.WebApi.Models;

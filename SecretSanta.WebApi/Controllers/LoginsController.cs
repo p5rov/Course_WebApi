@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Web.Http;
 using Microsoft.AspNet.Identity;
 using SecretSanta.Repository;
+using SecretSanta.Repository.Dto;
 using SecretSanta.Repository.Interfaces;
 using SecretSanta.Repository.Models;
 

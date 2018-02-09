@@ -10,6 +10,8 @@ using System.Transactions;
 using System.Web.Http;
 using System.Web.Http.Description;
 using Microsoft.AspNet.Identity;
+using Microsoft.AspNet.Identity.EntityFramework;
+
 using SecretSanta.Repository;
 using SecretSanta.Repository.Dto;
 using SecretSanta.Repository.Interfaces;
@@ -18,25 +20,16 @@ using SecretSanta.WebApi.Models;
 
 namespace SecretSanta.WebApi.Controllers
 {
-    public class UsersController : ApiController
+    public class UsersController : ControllerBase
     {
-        private IUserRepository m_UserRepository;
+        private IUserService m_UserService;
 
-        public UsersController(IUserRepository userRepository)
+        public UsersController(IUserService userService)
         {
-            m_UserRepository = userRepository;
+            m_UserService = userService;
         }
 
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                m_UserRepository.Dispose();
-            }
-
-            base.Dispose(disposing);
-        }
-
+        [Route("api/users/{username}")]
         [ResponseType(typeof(UserDto))]
         public HttpResponseMessage Get(string username)
         {
@@ -56,7 +49,7 @@ namespace SecretSanta.WebApi.Controllers
                 return Request.CreateResponse(HttpStatusCode.BadRequest);
             }
 
-            UserDto user = m_UserRepository.Get(username);
+            UserDto user = m_UserService.GetByUserName(username);
             if (user == null)
             {
                 return Request.CreateResponse(HttpStatusCode.NotFound, "user not found");
@@ -64,8 +57,11 @@ namespace SecretSanta.WebApi.Controllers
 
             return Request.CreateResponse(HttpStatusCode.OK, user);
         }
-        
-        public List<UserDto> Get(int? skip, int? take, string order, string search)
+
+
+        [Route("api/users")]
+        [ResponseType(typeof(List<UserDto>))]
+        public HttpResponseMessage Get(int? skip = null, int? take = null, string order = null, string search = null)
         {
             //#4
             //GET ~/users?skip={s}&take={t}&order={Asc|Desc}&search={phrase}
@@ -77,32 +73,15 @@ namespace SecretSanta.WebApi.Controllers
             //Error:
             //400 bad request
 
-
-
-            return new List<UserDto>();
+            List<UserDto> userList = m_UserService.GetList(skip, take, order, search);
+            return Request.CreateResponse(HttpStatusCode.OK, userList);
         }
         
+        [Route("api/users")]
         [ResponseType(typeof(string))]
         [AllowAnonymous]
         public async Task<HttpResponseMessage> Post([FromBody]UserDto userDto)
         {
-            //#1
-            //POST ~/ users
-            //Header: None
-            //Body:
-            //{
-            //    "username" : "...",
-            //    "displayName" : "...",
-            //    "password" : "hash" }
-            //Success:
-            //201.Created
-
-            //Header: None
-            //Body: { "displayName" : "..." }
-            //Error:
-            //400 Bad request
-            //409 Conflict - неуникално име
-
             if (!ModelState.IsValid)
             {
                 Request.CreateResponse(HttpStatusCode.BadRequest, ModelState);
@@ -123,7 +102,7 @@ namespace SecretSanta.WebApi.Controllers
             return Request.CreateResponse(HttpStatusCode.Created, userDto.DisplayName);
         }
 
-        [Route("users/{username}/invitations")]
+        [Route("api/users/{username}/invitations")]
         [HttpPost]
         public HttpResponseMessage PostInvitations(string username, [FromBody]UserInvitationDto invitation)
         {

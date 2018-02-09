@@ -4,11 +4,17 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Web.Http;
+using System.Web.Script.Serialization;
+
 using Microsoft.AspNet.Identity;
+
+using Newtonsoft.Json;
+
 using SecretSanta.Repository;
 using SecretSanta.Repository.Dto;
 using SecretSanta.Repository.Interfaces;
 using SecretSanta.Repository.Models;
+using SecretSanta.WebApi.AuthorizationAttributes;
 
 namespace SecretSanta.WebApi.Controllers
 {
@@ -17,15 +23,17 @@ namespace SecretSanta.WebApi.Controllers
 
     using Microsoft.AspNet.Identity.EntityFramework;
 
-    public class LoginsController : ApiController
+    public class LoginsController : ControllerBase
     {
-        private IUserRepository m_UserRepository;
-        public LoginsController()
+        private ITokenService m_TokenService;
+
+        public LoginsController(ITokenService tokenService)
         {
-            m_UserRepository = new UserRepository();
+            m_TokenService = tokenService;
         }
 
         // POST api/logins
+        [Route("api/logins")]
         [AllowAnonymous]
         public async Task<HttpResponseMessage> Post([FromBody] LoginDto login)
         {
@@ -46,41 +54,30 @@ namespace SecretSanta.WebApi.Controllers
                                                                         };
                 FormUrlEncodedContent encodedParams = new FormUrlEncodedContent(requestParams);
                 HttpResponseMessage responce = await httpClient.PostAsync(tokenServiceUrl, encodedParams);
+                if (responce.StatusCode == HttpStatusCode.OK)
+                {
+                    string responceMessage = await responce.Content.ReadAsStringAsync();
+                    Dictionary<string, string> jsonData = JsonConvert.DeserializeObject<Dictionary<string, string>>(responceMessage);
+                    var authToken = jsonData["access_token"];
+                    m_TokenService.SaveToken(login.UserName, authToken);
+                }
+
                 return responce;
             }
-            // #2
-            // POST ~/ logins
-            // Header: None
-            // Body: 
-            // {
-            //     "username" : "...",
-            //     "password" : "hash" }
-            // Success:
-            // 201.Created
-
-            // Header: None
-            // Body: { "authToken" : "..." }
-            // Error:
-            // 400 Bad request
-            // 404 Not found
-            // 401 Unauthorized - грешен username или парола
         }
-        
-        // DELETE api/logins/{username}
-        public void Delete(string username)
-        {
-            //#3
-            //DELETE ~/ logins /{ username}
-            //Header: { "authToken" : "token" }
-            //Body: None
-            //    Success
-            //204 No content
 
-            //Header: None
-            //Body: None
-            //    Error
-            //400 Bad request
-            //404 Not found -вече отписан потребител
+        // DELETE api/logins/{username}
+        [Route("api/logins/{username}")]
+        [UserAuthorize]
+        public HttpResponseMessage Delete(string username)
+        {
+            if (username != GetUserName())
+            {
+                return Request.CreateResponse(HttpStatusCode.BadRequest, "Invalid username");
+            }
+
+            m_TokenService.DeleteTokens(username);
+            return Request.CreateResponse(HttpStatusCode.NoContent);
         }
     }
 }

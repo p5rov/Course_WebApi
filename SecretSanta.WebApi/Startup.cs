@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Data.Entity;
 using System.Linq;
 using System.Web;
 using System.Web.Compilation;
@@ -10,6 +11,7 @@ using Microsoft.Owin.Security.OAuth;
 using Owin;
 
 using SecretSanta.Repository.Models;
+using SecretSanta.WebApi.AuthorizationAttributes;
 using SecretSanta.WebApi.Providers;
 
 [assembly: OwinStartup(typeof(SecretSanta.WebApi.Startup))]
@@ -45,7 +47,7 @@ namespace SecretSanta.WebApi
                                                           {
                                                               AllowInsecureHttp = true,
                                                               TokenEndpointPath = new PathString("/token"),
-                                                              AccessTokenExpireTimeSpan = TimeSpan.FromHours(4),
+                                                              AccessTokenExpireTimeSpan = TimeSpan.FromDays(30),
                                                               Provider = new AuthorizationServerProvider(),
                                                           };
             app.UseOAuthAuthorizationServer(options);
@@ -58,9 +60,17 @@ namespace SecretSanta.WebApi
             Assembly assembly = typeof(UserIdentity).Assembly;
 
             builder.RegisterAssemblyTypes(new[] { assembly }).AsImplementedInterfaces();
-            builder.RegisterType<GroupRepositoryFake>().As<IGroupRepository>();
-            
+            builder.RegisterType<TokenService>().As<ITokenService>();
+            builder.RegisterType<Repository<TokenData>>().As<IRepository<TokenData>>();
+            builder.RegisterType<Repository<Group>>().As<IRepository<Group>>();
+            builder.RegisterType<Repository<GroupParticipant>>().As<IRepository<GroupParticipant>>();
+            builder.RegisterType<Repository<GroupParticipant>>().As<IRepository<GroupParticipant>>();
+            builder.RegisterType<Repository<UserIdentity>>().As<IRepository<UserIdentity>>();
+            builder.RegisterType<SecretSantaContext>().As<DbContext>();
             builder.RegisterApiControllers(Assembly.GetExecutingAssembly());
+
+            builder.RegisterType<UserAuthorizeAttribute>().PropertiesAutowired();
+
             builder.RegisterWebApiFilterProvider(config);
             IContainer container = builder.Build();
             config.DependencyResolver = new AutofacWebApiDependencyResolver(container);

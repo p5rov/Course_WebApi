@@ -5,38 +5,42 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using SecretSanta.Repository.Interfaces;
 using SecretSanta.Repository.Models;
 
 namespace SecretSanta.Repository
 {
-    public class TokenService
+    public class TokenService : ITokenService
     {
+        private IRepository<TokenData> m_TokenDataRepository;
+
+        public TokenService(IRepository<TokenData> tokenDataRepository)
+        {
+            m_TokenDataRepository = tokenDataRepository;
+        }
+
         public void SaveToken(string userName, string token)
         {
             TokenData tokenData = new TokenData();
             tokenData.UserName = userName;
+            tokenData.CreateDate = DateTime.Now;
             tokenData.Token = token;
             tokenData.ExpirationDate = DateTime.Now.AddHours(Convert.ToInt32(ConfigurationManager.AppSettings["TokenExpirationPeriod"]));
-            using (SecretSantaContext context = new SecretSantaContext())
-            {
-                context.TokenData.Add(tokenData);
-            }
+            m_TokenDataRepository.Set().Add(tokenData);
+            m_TokenDataRepository.SaveChanges();
         }
 
         public bool IsValidToken(string userName, string token)
         {
-            using (SecretSantaContext context = new SecretSantaContext())
+            TokenData tokenData = m_TokenDataRepository.Set().FirstOrDefault(p => p.UserName == userName && p.Token == token);
+            if (tokenData == null)
             {
-                TokenData tokenData = context.TokenData.Where(p => p.UserName == userName && p.Token == token).FirstOrDefault();
-                if (tokenData == null)
-                {
-                    return false;
-                }
+                return false;
+            }
 
-                if (tokenData.ExpirationDate < DateTime.Now)
-                {
-                    return false;
-                }
+            if (tokenData.ExpirationDate < DateTime.Now)
+            {
+                return false;
             }
 
             return true;
@@ -44,14 +48,20 @@ namespace SecretSanta.Repository
 
         public void ExtendTokenPeriod(string userName, string token)
         {
-            using (SecretSantaContext context = new SecretSantaContext())
+            TokenData tokenData = m_TokenDataRepository.Set().FirstOrDefault(p => p.UserName == userName && p.Token == token);
+            if (tokenData != null)
             {
-                TokenData tokenData = context.TokenData.Where(p => p.UserName == userName && p.Token == token).FirstOrDefault();
-                if (tokenData != null)
-                {
-                    tokenData.ExpirationDate = DateTime.Now.AddHours(Convert.ToInt32(ConfigurationManager.AppSettings["TokenExpirationPeriod"]));
-                    context.SaveChanges();
-                }
+                tokenData.ExpirationDate = DateTime.Now.AddHours(Convert.ToInt32(ConfigurationManager.AppSettings["TokenExpirationPeriod"]));
+                m_TokenDataRepository.SaveChanges();
+            }
+        }
+
+        public void DeleteTokens(string userName)
+        {
+            TokenData[] tokens = m_TokenDataRepository.Set().Where(p => p.UserName == userName).ToArray();
+            foreach (TokenData token in tokens)
+            {
+                m_TokenDataRepository.Set().Remove(token);
             }
         }
     }

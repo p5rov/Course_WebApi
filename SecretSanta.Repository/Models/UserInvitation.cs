@@ -19,9 +19,5 @@ namespace SecretSanta.Repository.Models
         public int GroupId { get; set; }
 
         public virtual Group Group { get; set; }
-
-        public string GroupAdminId { get; set; }
-
-        public virtual UserIdentity GroupAdmin { get; set; }
     }
 }

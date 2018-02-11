@@ -63,6 +63,8 @@ namespace SecretSanta.Repository
             {
                 m_TokenDataRepository.Set().Remove(token);
             }
+
+            m_TokenDataRepository.SaveChanges();
         }
     }
 }

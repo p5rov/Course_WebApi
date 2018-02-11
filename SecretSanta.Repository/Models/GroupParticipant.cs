@@ -18,5 +18,8 @@ namespace SecretSanta.Repository.Models
 
         public virtual Group Group { get; set; }
 
+        public virtual int? FellowId { get; set; }
+
+        public virtual GroupParticipant Fellow { get; set; }
     }
 }

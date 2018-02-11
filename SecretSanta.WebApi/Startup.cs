@@ -60,13 +60,16 @@ namespace SecretSanta.WebApi
             Assembly assembly = typeof(UserIdentity).Assembly;
 
             builder.RegisterAssemblyTypes(new[] { assembly }).AsImplementedInterfaces();
+            builder.RegisterType<UserService>().As<IUserService>();
+            builder.RegisterType<GroupService>().As<IGroupService>();
             builder.RegisterType<TokenService>().As<ITokenService>();
+
             builder.RegisterType<Repository<TokenData>>().As<IRepository<TokenData>>();
             builder.RegisterType<Repository<Group>>().As<IRepository<Group>>();
             builder.RegisterType<Repository<GroupParticipant>>().As<IRepository<GroupParticipant>>();
-            builder.RegisterType<Repository<GroupParticipant>>().As<IRepository<GroupParticipant>>();
+            builder.RegisterType<Repository<UserInvitation>>().As<IRepository<UserInvitation>>();
             builder.RegisterType<Repository<UserIdentity>>().As<IRepository<UserIdentity>>();
-            builder.RegisterType<SecretSantaContext>().As<DbContext>();
+            builder.RegisterType<SecretSantaContext>().As<DbContext>().SingleInstance();
             builder.RegisterApiControllers(Assembly.GetExecutingAssembly());
 
             builder.RegisterType<UserAuthorizeAttribute>().PropertiesAutowired();

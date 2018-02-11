@@ -13,99 +13,139 @@ using SecretSanta.WebApi.Models;
 
 namespace SecretSanta.WebApi.Controllers
 {
-    public class GroupsController : ApiController
+    public class GroupsController : ControllerBase
     {
-        private readonly IGroupRepository m_GroupRepository;
+        private readonly IGroupService m_GroupService;
+        private readonly IUserService m_UserService;
 
-        public GroupsController(IGroupRepository groupRepository)
+        public GroupsController(IGroupService groupService, IUserService userService)
         {
-            m_GroupRepository = groupRepository;
+            m_GroupService = groupService;
+            m_UserService = userService;
         }
 
-        // POST api/<controller>
-        public GroupDto Post([FromBody] string groupName)
+        // POST api/<controller>;2
+        [Route("api/groups")]
+        [ResponseType(typeof(GroupDto))]
+        [UserAuthorize]
+        public HttpResponseMessage Post([FromBody]string groupName)
         {
-            // #6
-            // POST ~/groups 
-            // Header : {"authToken" : "..." } 
-            // Body : {"groupName" : "..."}
-            // Success:
-            // 201 Created.
-            // Header: None
-            // Body: { "groupName" : "..." , "adminName": "..."}
-            // Error:
-            // 400 bad request
-            // 409 content - името не е уникално
-            return new GroupDto();
+            if (string.IsNullOrEmpty(groupName))
+            {
+                return Request.CreateResponse(HttpStatusCode.BadRequest);
+            }
+
+            GroupDto group = m_GroupService.GetByName(groupName);
+            if (group != null)
+            {
+                return Request.CreateResponse(HttpStatusCode.Conflict, "group with same name already exists");
+            }
+
+            GroupDto createdGroup = m_GroupService.CreateGroup(GetUserName(), groupName);
+            return Request.CreateResponse(HttpStatusCode.Created, createdGroup);
         }
 
-        [Route("groups/{groupName}/participants")]
-        public HttpResponseMessage PostParticipants(string groupName, [FromBody]string userName)
+        [Route("api/groups/{groupName}/participants")]
+        [UserAuthorize]
+        public HttpResponseMessage PostParticipants(string groupName)
         {
-            // #9a
-            // POST ~/groups/{groupName}/participants
-            // Header : {"authToken" : "..." }
-            // Body : {"username" : "..." }
-            // Success: 
-            // 200 Created
-            // Error :
-            // 400 Bad request
-            // 403 Forbiden - нямаме покана за тази група
+            if (string.IsNullOrEmpty(groupName))
+            {
+                return Request.CreateResponse(HttpStatusCode.BadRequest);
+            }
+
+            if (!m_UserService.IsInvited(GetUserName(), groupName))
+            {
+                return Request.CreateResponse(HttpStatusCode.NotFound, "user not invited to this group");
+            }
+            
+            // add participant delete invitation;
+            m_GroupService.AddParticipant(groupName, GetUserName());
             return Request.CreateResponse(HttpStatusCode.Created);
         }
 
-        [Route("~/groups/{groupName}/links")]
+        [Route("api/groups/{groupName}/links")]
+        [UserAuthorize]
         public HttpResponseMessage PostLinks(string groupName)
         {
-            // #10
-            // POST(или пък PUT) ~/groups/{groupname}/links
-            // Header : {"authToken" : "..." }
-            // Body : No
+            if (string.IsNullOrEmpty(groupName))
+            {
+                return Request.CreateResponse(HttpStatusCode.BadRequest);
+            }
 
-            // Success: 
-            // 201. Created no body no headers
-            // Error: 
-            // 400 bad request 
-            // 404 Not found - няма потребител в групата с username подаден в body-то на request-a
-            // 403 Forbiden - не сме създател на въпросната група, за която правим свързване
-            // 412 Precondition Failed - се опитаме да стартираме процес с един член ( точка е)
+            GroupDto group = m_GroupService.GetByName(groupName);
+            if (group == null)
+            {
+                return Request.CreateResponse(HttpStatusCode.NotFound, "group not found");
+            }
+
+            if (group.AdminName != GetUserName())
+            {
+                return Request.CreateResponse(HttpStatusCode.Forbidden, "user not admin for the group");
+            }
+
+            int participantsCount = m_GroupService.GetParticipantsCount(groupName);
+            if (participantsCount <= 1)
+            {
+                return Request.CreateResponse(HttpStatusCode.PreconditionFailed, "not enough participants");
+            }
+
+            m_GroupService.ProcessGroup(groupName);
             return Request.CreateResponse(HttpStatusCode.Created);
         }
 
         [Route("api/groups/{groupname}/participants")]
-        [ResponseType(typeof(string[]))]
-        [AdminAuthorize]
+        [ResponseType(typeof(List<string>))]
+        [UserAuthorize]
         public HttpResponseMessage GetGroupParticipants(string groupname)
         {
-            // #13
-            // GET ~/groups/{groupname}/participants
-            // Header: {"authToken" : "..." }
-            // Success:
-            // 200 Ok
-            // Header : None 
-            // Body : [...]
-            // Error:
-            // 400 Bad request
-            // 403 Forbiden - побителят не е администратор
-            List<string> participants = m_GroupRepository.GetParticipants(groupname);
+            if (string.IsNullOrEmpty(groupname))
+            {
+                return Request.CreateResponse(HttpStatusCode.BadRequest);
+            }
+
+            GroupDto group = m_GroupService.GetByName(groupname);
+            if (group == null)
+            {
+                return Request.CreateResponse(HttpStatusCode.NotFound, "group not found");
+            }
+
+            if (group.AdminName != GetUserName())
+            {
+                return Request.CreateResponse(HttpStatusCode.Forbidden, "user not admin for the group");
+            }
+
+            List<string> participants = m_GroupService.GetParticipants(groupname);
             return Request.CreateResponse(HttpStatusCode.OK, participants);
         }
 
         [Route("groups/{groupName}/participants/{participantUsername}")]
+        [UserAuthorize]
         public HttpResponseMessage DeleteParticipant(string groupName, string participantUsername)
         {
             // #14
-            // DELETE ~/groups/{groupName}/participants/{participantUsername}
-            // Header: {"authToken" : "..." }
-            // Body: None
-            // Success:
-            // 204 No content
-            // Header: None
-            // Body: None
-            // Error:
-            // 400 Bad request
-            // 404 Not found - няма такъв участник
-            // 403 Forbiden - побителят не е администратор
+            if (string.IsNullOrEmpty(groupName))
+            {
+                return Request.CreateResponse(HttpStatusCode.BadRequest);
+            }
+
+            GroupDto group = m_GroupService.GetByName(groupName);
+            if (group == null)
+            {
+                return Request.CreateResponse(HttpStatusCode.NotFound, "group not found");
+            }
+
+            if (group.AdminName != GetUserName())
+            {
+                return Request.CreateResponse(HttpStatusCode.Forbidden, "user not admin for the group");
+            }
+
+            if (!m_GroupService.IsUserInGroup(participantUsername, groupName))
+            {
+                return Request.CreateResponse(HttpStatusCode.NotFound, string.Format("user {0} not in group {1}", participantUsername, groupName));
+            }
+
+            m_GroupService.DeleteParticipant(participantUsername, groupName);
             return Request.CreateResponse(HttpStatusCode.NoContent);
         }
     }

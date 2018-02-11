@@ -16,6 +16,8 @@ using SecretSanta.Repository;
 using SecretSanta.Repository.Dto;
 using SecretSanta.Repository.Interfaces;
 using SecretSanta.Repository.Models;
+using SecretSanta.WebApi.AuthorizationAttributes;
+using SecretSanta.WebApi.Dto;
 using SecretSanta.WebApi.Models;
 
 namespace SecretSanta.WebApi.Controllers
@@ -23,14 +25,17 @@ namespace SecretSanta.WebApi.Controllers
     public class UsersController : ControllerBase
     {
         private IUserService m_UserService;
+        private readonly IGroupService m_GroupService;
 
-        public UsersController(IUserService userService)
+        public UsersController(IUserService userService, IGroupService groupService)
         {
             m_UserService = userService;
+            m_GroupService = groupService;
         }
 
         [Route("api/users/{username}")]
         [ResponseType(typeof(UserDto))]
+        [UserAuthorize]
         public HttpResponseMessage Get(string username)
         {
             //#5
@@ -61,18 +66,24 @@ namespace SecretSanta.WebApi.Controllers
 
         [Route("api/users")]
         [ResponseType(typeof(List<UserDto>))]
+        [UserAuthorize]
         public HttpResponseMessage Get(int? skip = null, int? take = null, string order = null, string search = null)
         {
-            //#4
-            //GET ~/users?skip={s}&take={t}&order={Asc|Desc}&search={phrase}
-            //Header : {"authToken" : "token" }
-            //Success:
-            //200 OK.
-            //	Header: None
-            //	Body: [ {"username" : "..." }, {...} ] 
-            //Error:
-            //400 bad request
+            if (skip <= 0)
+            {
+                return Request.CreateResponse(HttpStatusCode.BadRequest, "invalid skip value");
+            }
 
+            if (take <= 0)
+            {
+                return Request.CreateResponse(HttpStatusCode.BadRequest, "invalid take value");
+            }
+
+            if (!string.IsNullOrEmpty(order) && order.ToLower() != "asc" && order.ToLower() != "desc")
+            {
+                return Request.CreateResponse(HttpStatusCode.BadRequest, "invalud order value");
+            }
+            
             List<UserDto> userList = m_UserService.GetList(skip, take, order, search);
             return Request.CreateResponse(HttpStatusCode.OK, userList);
         }
@@ -104,98 +115,144 @@ namespace SecretSanta.WebApi.Controllers
 
         [Route("api/users/{username}/invitations")]
         [HttpPost]
+        [UserAuthorize]
         public HttpResponseMessage PostInvitations(string username, [FromBody]UserInvitationDto invitation)
         {
-            //#7
-            //POST ~/usrs/{username}/invitations
-            //Header : {"authToken" : "..." }
-            //Body: 
-            //{"groupName" : "...",
-            // "date" : "...",
-            // "adminName" : "..." }
-            //Success:
-            //201 Created
-            //	Header : None
-            //	Body : {"id": "..."}
-            //Error:
-            //400 bad request
-            //403 Forbiden  - покана за група, на която не е администратор
-            //404 Not found - не съществува потребител/група
-            //409 Conflict - потребителя има покана
+            if (!ModelState.IsValid)
+            {
+                return Request.CreateResponse(HttpStatusCode.BadRequest, ModelState);
+            }
+
+            if (username == GetUserName())
+            {
+                Request.CreateResponse(HttpStatusCode.BadRequest, "cannot invite yourself :)");
+            }
+
+            GroupDto group = m_GroupService.GetByName(invitation.GroupName);
+            if (group == null)
+            {
+                return Request.CreateResponse(HttpStatusCode.NotFound, "group not found.");
+            }
+
+            UserDto user = m_UserService.GetByUserName(username);
+            if (user == null)
+            {
+                return Request.CreateResponse(HttpStatusCode.NotFound, "user not found");
+            }
+
+            if (group.AdminName != GetUserName())
+            {
+                return Request.CreateResponse(HttpStatusCode.Forbidden, "you are not creator of the group.");
+            }
+
+            List<string> participants = m_GroupService.GetParticipants(group.GroupName);
+            if (participants.Contains(username))
+            {
+                return Request.CreateResponse(HttpStatusCode.Conflict, "user already in group");
+            }
+
+            bool isInvited = m_UserService.IsInvited(username, invitation.GroupName);
+            if (isInvited)
+            {
+                return Request.CreateResponse(HttpStatusCode.Conflict, "user already invited to this group");
+            }
+
+            m_UserService.Invite(username, invitation.GroupName);
+            
             return new HttpResponseMessage(HttpStatusCode.Created);
         }
 
         [Route("api/users/{username}/invitations")]
         [ResponseType(typeof(List<UserInvitationDto>))]
-        [HttpGet]
-        [Authorize]
+        [UserAuthorize]
         public HttpResponseMessage GetInvitations(string username, int? skip = null, int? take = null , string order = null)
         {
-            ClaimsPrincipal currentUser = this.User as ClaimsPrincipal;
-            string currentUserUserName = currentUser.Claims.Where(p => p.Type == "username").Select(p => p.Value).FirstOrDefault();
-            Debug.WriteLine(currentUserUserName);
-            //#8
-            //GET ~/users/{username}/invitations?skip={s}&take={t}&order={A|D} 
-            //Header : {"authToken" : "..." }
-            //Success:
-            //200 Ok.
-            //Header: None
-            //Body: [{"groupName" : "...", "date" : "...", "adminName" : "..." }, ...]
-            //Error:
-            //400 Bad request
-            //403 Forbiden - достъпване на чужди покани
-            return Request.CreateResponse(HttpStatusCode.OK, new List<UserInvitationDto>());
+            if (skip <= 0)
+            {
+                return Request.CreateResponse(HttpStatusCode.BadRequest, "invalid skip value");
+            }
+
+            if (take <= 0)
+            {
+                return Request.CreateResponse(HttpStatusCode.BadRequest, "invalid take value");
+            }
+
+            if (!string.IsNullOrEmpty(order) && order.ToLower() != "asc" && order.ToLower() != "desc")
+            {
+                return Request.CreateResponse(HttpStatusCode.BadRequest, "invalud order value");
+            }
+
+            if (username != GetUserName())
+            {
+                return Request.CreateResponse(HttpStatusCode.Forbidden, "Cannot get invitations for different user");
+            }
+
+            List<UserInvitationDto> list = m_UserService.GetInvitations(username, skip, take, order);
+            return Request.CreateResponse(HttpStatusCode.OK, list);
         }
 
-        [Route("users/{username}/invitations/{id}")]
+        [Route("api/users/{username}/invitations/{id}")]
+        [UserAuthorize]
         public HttpResponseMessage DeleteInvitation(string username, int id)
         {
-            //#9c
-            //DELETE ~/users/{username}/invitations/{id}
-            //Header : {"authToken" : "..." }
-            //Body : None
-            //Success: 
-            //204 No content
-            //	Header: None
-            //	Body: None
-            //Error:
-            //400 Bad request
-            //409 Not found - изтрива липсваща покана
+            if (username != GetUserName() || id <= 0)
+            {
+                return Request.CreateResponse(HttpStatusCode.BadRequest);
+            }
+
+            UserInvitationDto invitation = m_UserService.GetInvitation(id);
+            if (invitation == null || invitation.Username != username)
+            {
+                return Request.CreateResponse(HttpStatusCode.NotFound, "invitation not found");
+            }
+
+            m_UserService.DeleteInvitation(id);
+
             return Request.CreateResponse(HttpStatusCode.NoContent);
         }
 
 
-        [Route("users/{username}/groups")]
+        [Route("api/users/{username}/groups")]
         [ResponseType(typeof(List<GroupDto>))]
-        public HttpResponseMessage GetUserGroups(string username, int? skip, int? take)
+        [UserAuthorize]
+        public HttpResponseMessage GetUserGroups(string username, int? skip = null, int? take = null)
         {
-            //#11
-            //GET ~/users/{username}/groups?skip={s}&take={t}
-            //Header : {"authToken" : "..." }
-            //Success:
-            //200 Ok.
-            //	Header: none
-            //	Body: [ ... ]
-            //Error
-            // 400 Bad request
-            return Request.CreateResponse(HttpStatusCode.OK, new List<GroupDto>());
+            if (skip <= 0)
+            {
+                return Request.CreateResponse(HttpStatusCode.BadRequest, "invalid skip value");
+            }
+
+            if (take <= 0)
+            {
+                return Request.CreateResponse(HttpStatusCode.BadRequest, "invalid take value");
+            }
+
+            if (username != GetUserName())
+            {
+                return Request.CreateResponse(HttpStatusCode.BadRequest, "not same user");
+            }
+
+            List<GroupDto> userGroups = m_GroupService.GetGroupsForUser(username);
+            return Request.CreateResponse(HttpStatusCode.OK, userGroups);
         }
 
-        [Route("users/{username}/groups/{groupname}/links")]
+        [Route("api/users/{username}/groups/{groupname}/links")]
         [ResponseType(typeof(string))]
+        [UserAuthorize]
         public HttpResponseMessage GetLink(string username, string groupname)
         {
-            //#12
-            //GET ~users/{username}/groups/{groupname}/links
-            //Header: {"authToken" : "..." }
-            //Success: 
-            // 200 OK
-            //	Header : None 
-            //	Body : {"reciever" : "username" } 
-            // Error:
-            // 400 bad request
-            // 404 Not found - процесът още не е стартиран от създателя на групата ( точка б)
-            return Request.CreateResponse(HttpStatusCode.Created, string.Empty);
+            if (username != GetUserName())
+            {
+                return Request.CreateResponse(HttpStatusCode.BadRequest, "not same user");
+            }
+
+            string fellow = m_GroupService.GetFellow(username, groupname);
+            if (string.IsNullOrEmpty(fellow))
+            {
+                return Request.CreateResponse(HttpStatusCode.NotFound, string.Format("process not started or user not in {0}", groupname));
+            }
+
+            return Request.CreateResponse(HttpStatusCode.Created, fellow);
         }
 
         private HttpResponseMessage GetErrorResult(IdentityResult result)
